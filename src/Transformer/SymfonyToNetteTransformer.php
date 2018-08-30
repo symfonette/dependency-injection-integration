@@ -150,7 +150,7 @@ final class SymfonyToNetteTransformer
 
     private function sanitizeServiceName($name): string
     {
-        return strtr($name, ['-' => '_', '\\' => '.']);
+        return strtr((string) $name, ['-' => '_', '\\' => '.']);
     }
 
     private function transformResources(SymfonyBuilder $symfonyBuilder, NetteBuilder $netteBuilder): void
