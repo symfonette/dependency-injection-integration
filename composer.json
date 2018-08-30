@@ -1,0 +1,54 @@
+{
+    "name": "symfonette/dependency-injection-integration",
+    "type": "library",
+    "description": "",
+    "keywords": ["symfony", "nette", "di", "dependency injection"],
+    "homepage": "https://symfony.webuni.cz",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Martin Hasoň",
+            "email": "martin.hason@gmail.com"
+        },
+        {
+            "name": "Webuni s.r.o.",
+            "homepage": "https://www.webuni.cz"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Symfonette\\DependencyInjectionIntegration\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Symfonette\\DependencyInjectionIntegration\\Tests\\": "tests"
+        }
+    },
+    "require": {
+        "php": "^7.1",
+        "symfony/dependency-injection": "^3.4|^4.0",
+        "symfony/config": "^3.4|^4.0",
+        "nette/di": "^2.3"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.13",
+        "phpstan/phpstan": "^0.10.3",
+        "phpunit/phpunit": "^6.0|^7.0",
+        "symfonette/neon-integration": "@dev",
+        "symfony/http-kernel": "^3.4|^4.0",
+        "symfony/proxy-manager-bridge": "^3.4|^4.0",
+        "symfony/var-dumper": "^3.4|^4.0"
+    },
+    "suggest": {
+        "symfony/http-kernel": "If you want to use bundle"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0-dev"
+        }
+    }
+}
