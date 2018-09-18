@@ -14,8 +14,12 @@ namespace Symfonette\DependencyInjectionIntegration\Transformer;
 
 use Nette\DI\ContainerBuilder as NetteBuilder;
 use Nette\DI\ServiceDefinition;
+use Nette\DI\Statement;
 use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\DependencyInjection\Argument\ArgumentInterface;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
+use Symfony\Component\DependencyInjection\Argument\RewindableGenerator;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder as SymfonyBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
@@ -74,10 +78,9 @@ final class SymfonyToNetteTransformer
         $netteDefinition
             ->setType($symfonyDefinition->getClass())
             ->setTags($symfonyDefinition->getTags())
+            ->setFactory($this->transformFactory($symfonyDefinition, $netteBuilder))
+            ->setArguments($this->transformArguments($symfonyDefinition->getArguments(), $netteBuilder))
         ;
-
-        $this->transformFactory($symfonyDefinition, $netteDefinition, $netteBuilder);
-        $netteDefinition->setArguments($this->transformArguments($symfonyDefinition->getArguments(), $netteBuilder));
 
         foreach ($symfonyDefinition->getMethodCalls() as $methodCall) {
             $netteDefinition->addSetup($methodCall[0], $this->transformArguments($methodCall[1], $netteBuilder));
@@ -88,10 +91,25 @@ final class SymfonyToNetteTransformer
 
     private function transformArguments(array $arguments, NetteBuilder $netteBuilder)
     {
-        $netteArguments = [];
         foreach ($arguments as $key => $argument) {
             if (is_array($argument)) {
                 $argument = $this->transformArguments($argument, $netteBuilder);
+            } elseif ($argument instanceof ServiceClosureArgument) {
+                $argument = new Statement('function(){ return ?; }', ['@'.$argument->getValues()[0]]);
+            } elseif ($argument instanceof IteratorArgument) {
+                $args = [];
+                $code = 'new \\'.RewindableGenerator::class."(function() {\n";
+                if (!count($argument->getValues())) {
+                    $code .= "return new \EmptyIterator();\n";
+                }
+                foreach ($argument->getValues() as $k => $v) {
+                    $code .= "?;\n";
+                    $args[] = new Statement('yield ? => ?', [$k, '@'.$v]);
+                }
+                $code .= '}, ?)';
+                $args[] = count($argument->getValues());
+
+                $argument = new Statement($code, $args);
             } elseif ($argument instanceof ArgumentInterface) {
                 $argument = $this->transformArguments($argument->getValues(), $netteBuilder);
             } elseif ($argument instanceof Reference) {
@@ -105,18 +123,15 @@ final class SymfonyToNetteTransformer
                 $argument = $netteBuilder->expand($argument);
             }
 
-            $netteArguments[$key] = $argument;
+            $arguments[$key] = $argument;
         }
 
-        return $netteArguments;
+        return $arguments;
     }
 
-    private function transformFactory(Definition $symfonyDefinition, ServiceDefinition $netteDefinition, NetteBuilder $netteBuilder)
+    private function transformFactory(Definition $symfonyDefinition, NetteBuilder $netteBuilder)
     {
         $factory = $symfonyDefinition->getFactory();
-        if (null === $factory) {
-            return $netteDefinition;
-        }
 
         if (is_array($factory) && $factory[0] instanceof Reference) {
             $factory = ['@'.$factory[0], $factory[1]];
@@ -125,9 +140,7 @@ final class SymfonyToNetteTransformer
             $factory = ['@'.$name, $factory[1]];
         }
 
-        $netteDefinition->setFactory($factory);
-
-        return $netteDefinition;
+        return $factory;
     }
 
     private function fixAutowiredDefinitions(SymfonyBuilder $symfonyBuilder, NetteBuilder $netteBuilder): void
