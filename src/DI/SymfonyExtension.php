@@ -245,7 +245,7 @@ final class SymfonyExtension extends CompilerExtension
             'kernel.bundles' => $bundlesInstance,
             'kernel.bundles_metadata' => $bundlesMetadata,
             'kernel.charset' => 'utf-8',
-            'kernel.container_class' => null,
+            'kernel.container_class' => $this->name.ucfirst($this->environment).($this->debug ? 'Debug' : '').'ProjectContainer',
         ];
     }
 
