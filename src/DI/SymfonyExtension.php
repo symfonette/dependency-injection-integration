@@ -77,9 +77,6 @@ final class SymfonyExtension extends CompilerExtension
 
         unset($config['bundles'], $config['extensions'], $config['compiler_passes']);
         $this->container = $this->buildSymfonyContainer($bundles, $extensions, $compilerPasses, $config);
-        //		$this->container->compile();
-//		$this->parametersTransformer->transformFromNetteToSymfony($this->compiler, $config);
-//		$this->loadBundlesToSymfonyContainerBuilder($config['parameters']);
     }
 
     public function beforeCompile(): void
@@ -99,10 +96,10 @@ final class SymfonyExtension extends CompilerExtension
     {
         $initializerMethod = $class->getMethod('initialize');
         $initializerMethod->addBody('
-			foreach (? as $bundle) {
-				$bundle->setContainer($this->getService(?));
-				$bundle->boot();
-			}', [$this->bundles, self::CONTAINER_SERVICE_NAME])
+            foreach (? as $bundle) {
+                $bundle->setContainer($this->getService(?));
+                $bundle->boot();
+            }', [$this->bundles, self::CONTAINER_SERVICE_NAME])
         ;
     }
 
@@ -234,6 +231,8 @@ final class SymfonyExtension extends CompilerExtension
             ];
         }
 
+        $time = time();
+        $hash = substr(base64_encode(hash('sha256', serialize($this->config), true)), 0, 7);
         return [
             'kernel.root_dir' => '%appDir%',
             'kernel.project_dir' => realpath($this->projectDir) ?: $this->projectDir,
@@ -246,6 +245,9 @@ final class SymfonyExtension extends CompilerExtension
             'kernel.bundles_metadata' => $bundlesMetadata,
             'kernel.charset' => 'utf-8',
             'kernel.container_class' => $this->name.ucfirst($this->environment).($this->debug ? 'Debug' : '').'ProjectContainer',
+            'container.build_hash' => $hash,
+            'container.build_time' => $time,
+            'container.build_id' => hash('crc32', $hash.$time),
         ];
     }
 
