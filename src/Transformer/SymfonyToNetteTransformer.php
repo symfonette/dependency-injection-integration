@@ -22,6 +22,7 @@ use Symfony\Component\DependencyInjection\Argument\RewindableGenerator;
 use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder as SymfonyBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\Reference;
 
 final class SymfonyToNetteTransformer
@@ -92,33 +93,41 @@ final class SymfonyToNetteTransformer
     private function transformArguments(array $arguments, NetteBuilder $netteBuilder)
     {
         foreach ($arguments as $key => $argument) {
+            if ($argument instanceof Parameter) {
+                $argument = $netteBuilder->parameters[(string) $argument];
+            } elseif (is_string($argument) && preg_match('/^%([^%]+)%$/', $argument, $match)) {
+                $argument = $netteBuilder->parameters[$match[1]];
+            }
+
             if (is_array($argument)) {
                 $argument = $this->transformArguments($argument, $netteBuilder);
-            } elseif ($argument instanceof ServiceClosureArgument) {
-                $argument = new Statement('function(){ return ?; }', ['@'.$argument->getValues()[0]]);
-            } elseif ($argument instanceof IteratorArgument) {
-                $args = [];
-                $code = 'new \\'.RewindableGenerator::class."(function() {\n";
-                if (!count($argument->getValues())) {
-                    $code .= "return new \EmptyIterator();\n";
-                }
-                foreach ($argument->getValues() as $k => $v) {
-                    $code .= "?;\n";
-                    $args[] = new Statement('yield ? => ?', [$k, '@'.$v]);
-                }
-                $code .= '}, ?)';
-                $args[] = count($argument->getValues());
-
-                $argument = new Statement($code, $args);
             } elseif ($argument instanceof ArgumentInterface) {
-                $argument = $this->transformArguments($argument->getValues(), $netteBuilder);
+                $references = $this->transformArguments($argument->getValues(), $netteBuilder);
+                if ($argument instanceof ServiceClosureArgument) {
+                    $argument = new Statement('function(){ return ?; }', [$references[0]]);
+                } elseif ($argument instanceof IteratorArgument) {
+                    $count = count($references);
+                    $code = sprintf(
+                        "new \\%s(function() {\n%s}, ?)",
+                        RewindableGenerator::class,
+                        $count ? str_repeat("?;\n", $count) : "return new \EmptyIterator();\n"
+                    );
+                    $args = array_map(function ($k, $v) {
+                        return new Statement('yield ? => ?', [$k, $v]);
+                    }, array_keys($references), $references);
+                    $args[] = $count;
+
+                    $argument = new Statement($code, $args);
+                } else {
+                    $argument = $references;
+                }
             } elseif ($argument instanceof Reference) {
                 $argument = '@'.$argument;
             } elseif ($argument instanceof Definition) {
                 $name = $this->addAnonymousDefinition($argument, $netteBuilder);
-                $argument = '@' . $name;
-            } elseif (is_string($argument) && preg_match('/^%([^%]+)%$/', $argument, $match)) {
-                $argument = $netteBuilder->parameters[$match[1]];
+                $argument = '@'.$name;
+            } elseif (is_string($argument) && preg_match('/^@(?!@)/', $argument)) {
+                $argument = $netteBuilder->expand('@'.$argument);
             } else {
                 $argument = $netteBuilder->expand($argument);
             }
