@@ -49,11 +49,15 @@ final class SymfonyExtension extends CompilerExtension
         'bundles' => [],
         'extensions' => [],
         'compiler_passes' => [],
+        'nette_to_symfony' => [],
+        'symfony_to_nette' => [],
         'imports' => [],
         'parameters' => [],
         'services' => [],
     ];
 
+    private $netteToSymfony = [];
+    private $symfonyToNette = [];
     private $bundles = [];
     private $projectDir;
     private $debug;
@@ -72,10 +76,15 @@ final class SymfonyExtension extends CompilerExtension
     {
         $config = $this->getConfig($this->defaults);
         $this->bundles = $bundles = $this->createBundles($config['bundles']);
+        $this->netteToSymfony = $config['nette_to_symfony'];
+        $this->symfonyToNette = $config['symfony_to_nette'];
         $extensions = $this->createExtensions($config['extensions']);
         $compilerPasses = $this->createCompilerPasses($config['compiler_passes']);
 
-        unset($config['bundles'], $config['extensions'], $config['compiler_passes']);
+        foreach (['bundles', 'extensions', 'compiler_passes', 'nette_to_symfony', 'symfony_to_nette'] as $key) {
+            unset($config[$key]);
+        }
+
         $this->container = $this->buildSymfonyContainer($bundles, $extensions, $compilerPasses, $config);
     }
 
@@ -84,11 +93,11 @@ final class SymfonyExtension extends CompilerExtension
         $netteContainer = $this->getContainerBuilder();
 
         $this->addSymfonyContainerAdapter(); // TODO
-        $transformer = new NetteToSymfonyTransformer();
+        $transformer = new NetteToSymfonyTransformer($this->netteToSymfony);
         $transformer->transform($netteContainer, $this->container);
-
         $this->container->compile();
-        $transformer = new SymfonyToNetteTransformer();
+
+        $transformer = new SymfonyToNetteTransformer($this->symfonyToNette);
         $transformer->transform($this->container, $netteContainer);
     }
 
@@ -120,6 +129,7 @@ final class SymfonyExtension extends CompilerExtension
     private function getSymfonyContainerBuilder(array $bundles): ContainerBuilder
     {
         $parameterBag = new NestedEnvPlaceholderParameterBag($this->getSymfonyParameters($bundles));
+//        $parameterBag = new EnvPlaceholderParameterBag($this->getSymfonyParameters($bundles));
         $container = new ContainerBuilder($parameterBag);
 
         if (class_exists(Configuration::class) && class_exists(RuntimeInstantiator::class)) {

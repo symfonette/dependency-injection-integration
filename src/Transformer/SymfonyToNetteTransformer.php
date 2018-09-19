@@ -29,6 +29,13 @@ use Symfony\Component\DependencyInjection\Reference;
 
 final class SymfonyToNetteTransformer
 {
+    private $config;
+
+    public function __construct(array $config = [])
+    {
+        $this->config = array_merge(['services' => [], 'tags' => []], $config);
+    }
+
     public function transform(SymfonyBuilder $symfonyBuilder, NetteBuilder $netteBuilder = null): NetteBuilder
     {
         $netteBuilder = $netteBuilder ?? new NetteBuilder();
@@ -50,8 +57,14 @@ final class SymfonyToNetteTransformer
 
     private function transformAliases(SymfonyBuilder $symfonyBuilder, NetteBuilder $netteBuilder): void
     {
+        $aliases = $netteBuilder->getAliases();
         foreach ($symfonyBuilder->getAliases() as $name => $alias) {
             if ($alias->isPrivate()) {
+                continue;
+            }
+
+            $name = $this->transformServiceName($name);
+            if (!$name || isset($aliases[$name])) {
                 continue;
             }
 
@@ -66,12 +79,13 @@ final class SymfonyToNetteTransformer
                 continue;
             }
 
+            $name = $this->transformServiceName($name);
             $name = $this->sanitizeServiceName($name);
-            if ($netteBuilder->hasDefinition($name)) {
+            if (!$name || $netteBuilder->hasDefinition($name)) {
                 continue;
             }
 
-            $netteDefinition =  $netteBuilder->addDefinition($name);
+            $netteDefinition = $netteBuilder->addDefinition($name);
             $this->transformDefinition($symfonyDefinition, $netteDefinition, $netteBuilder);
         }
     }
@@ -130,7 +144,7 @@ final class SymfonyToNetteTransformer
                     $argument = $references;
                 }
             } elseif ($argument instanceof Reference) {
-                $argument = '@'.$argument;
+                $argument = '@'.$this->transformServiceName((string) $argument);
             } elseif ($argument instanceof Definition) {
                 $name = $this->addAnonymousDefinition($argument, $netteBuilder);
                 $argument = '@'.$name;
@@ -176,6 +190,15 @@ final class SymfonyToNetteTransformer
                 }
             }
         }
+    }
+
+    private function transformServiceName($name)
+    {
+        if (array_key_exists($name, $this->config['services'])) {
+            $name = $this->config['services'][$name] ?? false;
+        }
+
+        return $name;
     }
 
     private function sanitizeServiceName($name): string
