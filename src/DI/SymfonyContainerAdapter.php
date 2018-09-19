@@ -13,16 +13,17 @@
 namespace Symfonette\DependencyInjectionIntegration\DI;
 
 use Nette\DI\Container;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Container as SymfonyContainer;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 
-final class SymfonyContainerAdapter implements ContainerInterface
+final class SymfonyContainerAdapter extends SymfonyContainer
 {
     private $container;
 
     public function __construct(Container $container)
     {
+        parent::__construct();
         $this->container = $container;
     }
 
