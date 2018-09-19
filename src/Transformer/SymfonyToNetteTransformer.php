@@ -15,7 +15,9 @@ namespace Symfonette\DependencyInjectionIntegration\Transformer;
 use Nette\DI\ContainerBuilder as NetteBuilder;
 use Nette\DI\ServiceDefinition;
 use Nette\DI\Statement;
+use Symfony\Component\Config\Resource\FileExistenceResource;
 use Symfony\Component\Config\Resource\FileResource;
+use Symfony\Component\Config\Resource\ReflectionClassResource;
 use Symfony\Component\DependencyInjection\Argument\ArgumentInterface;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\Argument\RewindableGenerator;
@@ -177,9 +179,12 @@ final class SymfonyToNetteTransformer
 
     private function transformResources(SymfonyBuilder $symfonyBuilder, NetteBuilder $netteBuilder): void
     {
+        $netteBuilder->addDependency((new \ReflectionClass($this))->getFileName());
         foreach ($symfonyBuilder->getResources() as $resource) {
-            if ($resource instanceof FileResource) {
-                $netteBuilder->addDependency($resource->getResource());
+            if ($resource instanceof FileResource || $resource instanceof FileExistenceResource) {
+                $netteBuilder->addDependency((string) $resource);
+            } elseif ($resource instanceof ReflectionClassResource) {
+                $netteBuilder->addDependency(new \ReflectionClass(substr((string) $resource, 11)));
             }
         }
     }
