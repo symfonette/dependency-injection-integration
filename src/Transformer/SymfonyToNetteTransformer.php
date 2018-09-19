@@ -78,12 +78,18 @@ final class SymfonyToNetteTransformer
 
     private function transformDefinition(Definition $symfonyDefinition, ServiceDefinition $netteDefinition, NetteBuilder $netteBuilder): ServiceDefinition
     {
+        $class = $symfonyDefinition->getClass();
         $netteDefinition
-            ->setType($symfonyDefinition->getClass())
+            ->setType($class)
             ->setTags($symfonyDefinition->getTags())
             ->setFactory($this->transformFactory($symfonyDefinition, $netteBuilder))
-            ->setArguments($this->transformArguments($symfonyDefinition->getArguments(), $netteBuilder))
-        ;
+            ->setArguments($this->transformArguments($symfonyDefinition->getArguments(), $netteBuilder));
+
+        // Fix some
+        if (!class_exists($class) && !interface_exists($class) && false === strpos($class, '\\')) {
+            $netteDefinition->setType(null);
+            $netteDefinition->setAutowired(false);
+        }
 
         foreach ($symfonyDefinition->getMethodCalls() as $methodCall) {
             $netteDefinition->addSetup($methodCall[0], $this->transformArguments($methodCall[1], $netteBuilder));
