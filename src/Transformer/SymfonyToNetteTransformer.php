@@ -111,7 +111,12 @@ final class SymfonyToNetteTransformer
 
         if ($configurator = $symfonyDefinition->getConfigurator()) {
             $configurator = $this->transformFactory($configurator, $netteBuilder);
-            $netteDefinition->addSetup(new Statement('?(?)', [$configurator, '@self']));
+            if (is_array($configurator)) {
+                $statement = new Statement('?->?(?)', array_merge($configurator, ['@self']));
+            } else {
+                $netteDefinition->addSetup(new Statement('?(?)', [$configurator, '@self']));
+            }
+            $netteDefinition->addSetup($statement);
         }
 
         return $netteDefinition;
