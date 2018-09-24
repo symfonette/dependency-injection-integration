@@ -114,7 +114,7 @@ final class SymfonyToNetteTransformer
             if (is_array($configurator)) {
                 $statement = new Statement('?->?(?)', array_merge($configurator, ['@self']));
             } else {
-                $netteDefinition->addSetup(new Statement('?(?)', [$configurator, '@self']));
+                $statement = new Statement('?(?)', [$configurator, '@self']);
             }
             $netteDefinition->addSetup($statement);
         }
