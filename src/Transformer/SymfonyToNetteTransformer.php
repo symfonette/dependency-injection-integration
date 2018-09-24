@@ -96,7 +96,7 @@ final class SymfonyToNetteTransformer
         $netteDefinition
             ->setType($class)
             ->setTags($symfonyDefinition->getTags())
-            ->setFactory($this->transformFactory($symfonyDefinition, $netteBuilder))
+            ->setFactory($this->transformFactory($symfonyDefinition->getFactory(), $netteBuilder))
             ->setArguments($this->transformArguments($symfonyDefinition->getArguments(), $netteBuilder));
 
         // Fix some
@@ -107,6 +107,11 @@ final class SymfonyToNetteTransformer
 
         foreach ($symfonyDefinition->getMethodCalls() as $methodCall) {
             $netteDefinition->addSetup($methodCall[0], $this->transformArguments($methodCall[1], $netteBuilder));
+        }
+
+        if ($configurator = $symfonyDefinition->getConfigurator()) {
+            $configurator = $this->transformFactory($configurator, $netteBuilder);
+            $netteDefinition->addSetup(new Statement('?(?)', [$configurator, '@self']));
         }
 
         return $netteDefinition;
@@ -160,10 +165,8 @@ final class SymfonyToNetteTransformer
         return $arguments;
     }
 
-    private function transformFactory(Definition $symfonyDefinition, NetteBuilder $netteBuilder)
+    private function transformFactory($factory, NetteBuilder $netteBuilder)
     {
-        $factory = $symfonyDefinition->getFactory();
-
         if (is_array($factory) && $factory[0] instanceof Reference) {
             $factory = ['@'.$factory[0], $factory[1]];
         } elseif (is_array($factory) && $factory[0] instanceof Definition) {
